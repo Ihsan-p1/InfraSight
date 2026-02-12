@@ -1,0 +1,53 @@
+# InfraSight Configuration File
+
+# Model Configurations
+models:
+  yolo:
+    architecture: "yolov8n-seg"  # Nano version for speed
+    weights_path: "models/weights/yolov8_seg.pt"
+    conf_threshold: 0.25
+    iou_threshold: 0.45
+    classes:
+      0: "pothole"
+      1: "reference_object"  # card or coin
+  
+  depth:
+    model_name: "depth-anything/Depth-Anything-V2-Small"
+    device: "cuda"  # or "cpu"
+
+# Reference Object Specifications (in cm) - CARD PRIORITIZED
+reference_objects:
+  card_standard:  # PRIMARY - Easier detection
+    width: 8.5
+    height: 5.4
+    area_cm2: 45.9  # 8.5 × 5.4
+    type: "rectangle"
+  coin_rp500:  # BACKUP - Harder to detect from distance
+    diameter: 2.7
+    area_cm2: 5.73  # π × (1.35)²
+    type: "circle"
+
+# Calibration
+volumetric:
+  calibration_constant: 30.0  # Empirical: multiply normalized depth to get cm
+  depth_percentile: 10  # Use bottom 10% deepest pixels for pothole depth
+  min_pothole_area_px: 100  # Minimum pothole area in pixels
+
+# Dataset Paths
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  rdd2022_path: "data/raw/RDD2022"
+  roboflow_path: "data/raw/roboflow_pothole"
+
+# Application Settings
+app:
+  title: "InfraSight - Pothole Volumetric Analysis"
+  max_upload_size: 10  # MB
+  default_camera_height: 150  # cm (assumed if not calibrated)
+  page_icon: "🕳️"
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

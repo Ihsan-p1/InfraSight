@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb_checkpoints
+
+# Data
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Models
+models/weights/*
+!models/weights/.gitkeep
+*.pt
+*.pth
+*.onnx
+
+# Logs
+*.log
+logs/
+runs/
+tensorboard/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Environment
+.env
+.env.local
+
+# Project notes
+PROJECT_SETUP_SUMMARY.md
