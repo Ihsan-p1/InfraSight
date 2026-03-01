@@ -57,9 +57,9 @@ def train_pothole_segmentation(
         print("⚠️  GPU requested but not available. Falling back to CPU.")
         device = 'cpu'
     
-    # Initialize model (YOLOv8-Nano Segmentation)
-    print("\n🔧 Loading YOLOv8n-seg pretrained weights...")
-    model = YOLO('yolov8n-seg.pt')  # Start from COCO pretrained
+    # Initialize model (YOLOv8-Medium Detection - best balance for mAP 0.7+)
+    print("\n🔧 Loading YOLOv8m pretrained weights...")
+    model = YOLO('yolov8m.pt')  # Medium model (25.9M params) for high accuracy
     
     # Training configuration
     print("\n🚀 Starting training...")
@@ -78,34 +78,44 @@ def train_pothole_segmentation(
         device=device,
         
         # Output configuration
-        project='models/weights/pothole_seg',
-        name='yolov8n_seg_v1',
+        project='models/weights/pothole_det',
+        name='yolov8m_d40_final',
         
         # Training settings
-        patience=10,           # Early stopping patience
+        patience=30,           # Early stopping patience (very patient for 200 epochs)
         save=True,             # Save checkpoints
-        save_period=10,        # Save every 10 epochs
+        save_period=20,        # Save every 20 epochs
         val=True,              # Validate during training
+        close_mosaic=20,       # Disable mosaic in last 20 epochs for better accuracy
         
-        # CRITICAL: Augmentations for class imbalance & small objects
-        mosaic=1.0,            # Mosaic augmentation (combines 4 images)
-        scale=0.5,             # Scale variation (0.5-1.5x)
-        flipud=0.0,            # No vertical flip (roads don't flip)
+        # Simplified augmentations (remove heavy ones that slow convergence)
+        mosaic=1.0,            # Mosaic augmentation (critical for small objects)
+        mixup=0.0,             # Removed - too confusing for pothole learning
+        copy_paste=0.0,        # Removed - not needed for single class
+        scale=0.9,             # Higher scale variation
+        flipud=0.0,            # No vertical flip
         fliplr=0.5,            # 50% horizontal flip
+        degrees=0.0,           # No rotation - roads are flat
+        translate=0.0,         # No translation
+        hsv_h=0.015,           # Light color augmentation
+        hsv_s=0.7,
+        hsv_v=0.4,
         
         # Loss weights for imbalanced dataset
         cls=1.0,               # Class loss weight
         box=0.5,               # Box loss weight
         
-        # Performance
-        workers=8,             # Data loader workers
+        # Performance (Windows compatible - reduce workers)
+        workers=0,             # Use 0 for Windows to avoid multiprocessing issues
         cache=True,            # Cache images in RAM for speed
         verbose=True,          # Detailed output
         
-        # Optimization
+        # Optimization (back to default - faster convergence)
         optimizer='AdamW',     # Use AdamW optimizer
-        lr0=0.01,             # Initial learning rate
-        lrf=0.01,             # Final learning rate (lr0 * lrf)
+        lr0=0.01,             # Initial learning rate (default)
+        lrf=0.01,             # Final learning rate
+        momentum=0.937,        # SGD momentum/Adam beta1
+        weight_decay=0.0005,   # Optimizer weight decay
         warmup_epochs=3        # Warmup epochs
     )
     
@@ -193,13 +203,13 @@ if __name__ == "__main__":
     # Verify GPU
     verify_gpu()
     
-    # Train model
+    # Train model (YOLOv8m with D40 pothole dataset for mAP >= 0.7)
     results = train_pothole_segmentation(
-        data_yaml="data/processed/data.yaml",
-        epochs=50,
-        batch_size=16,  # Reduce to 8 if GPU OOM
+        data_yaml="data/processed/rdd2022_d40_only/data.yaml",
+        epochs=200,  # Long training for convergence
+        batch_size=8,  # Windows compatible
         img_size=640,
-        device="0"  # Use '0' for GPU, 'cpu' for CPU
+        device="0"  # Use GPU
     )
     
     # Test inference (optional - provide test image path)

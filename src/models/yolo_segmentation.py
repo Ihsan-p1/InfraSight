@@ -1,5 +1,7 @@
 """
-YOLOv8 Segmentation for pothole and reference object detection
+YOLOv8 Detection/Segmentation for pothole and reference object detection.
+Supports both segmentation models (mask output) and detection-only models
+(bbox-to-mask fallback).
 """
 import cv2
 import numpy as np
@@ -19,11 +21,14 @@ class Detection:
 
 
 class PotholeSegmenter:
-    """YOLO segmentation inference for pothole and reference object detection"""
+    """YOLO inference for pothole and reference object detection.
+    Supports segmentation models (preferred) and detection-only models
+    (bbox used as rectangular mask fallback).
+    """
     
     def __init__(self, weights_path: str, conf_threshold: float = 0.25):
         """
-        Initialize YOLO segmentation model
+        Initialize YOLO model (auto-detects seg vs detect task).
         
         Args:
             weights_path: Path to trained weights (.pt file)
@@ -37,14 +42,25 @@ class PotholeSegmenter:
         self.model = YOLO(weights_path)
         self.conf_threshold = conf_threshold
         self.class_names = {0: 'pothole', 1: 'reference_object'}
+        
+        # Auto-detect model task ('detect' or 'segment')
+        self.is_detection_only = (self.model.task == 'detect')
+        print(f"✓ Model loaded — task: {'detection (bbox mask fallback)' if self.is_detection_only else 'segmentation'}")
     
+    def _bbox_to_mask(self, bbox: Tuple[int,int,int,int], img_h: int, img_w: int) -> np.ndarray:
+        """Create a filled rectangular mask from a bounding box."""
+        mask = np.zeros((img_h, img_w), dtype=np.uint8)
+        x1, y1, x2, y2 = bbox
+        mask[max(0,y1):min(img_h,y2), max(0,x1):min(img_w,x2)] = 1
+        return mask
+
     def detect(
         self,
         image: np.ndarray,
         visualize: bool = False
     ) -> Dict[str, any]:
         """
-        Detect potholes and reference objects in image
+        Detect potholes (and optionally reference objects) in an image.
         
         Args:
             image: RGB image (H, W, 3)
@@ -58,6 +74,8 @@ class PotholeSegmenter:
                 'annotated_image': np.ndarray (if visualize=True)
             }
         """
+        img_h, img_w = image.shape[:2]
+        
         # Run inference
         results = self.model.predict(
             image,
@@ -69,8 +87,10 @@ class PotholeSegmenter:
         pothole_masks = []
         reference_masks = []
         
-        # Extract results
-        if results.masks is not None:
+        has_masks = (results.masks is not None) and not self.is_detection_only
+        
+        if has_masks:
+            # Segmentation model: use predicted masks
             for i, (box, mask_data, cls) in enumerate(zip(
                 results.boxes.xyxy,
                 results.masks.data,
@@ -86,7 +106,7 @@ class PotholeSegmenter:
                 mask = mask_data.cpu().numpy()
                 mask = cv2.resize(
                     mask,
-                    (image.shape[1], image.shape[0]),
+                    (img_w, img_h),
                     interpolation=cv2.INTER_LINEAR
                 )
                 mask = (mask > 0.5).astype(np.uint8)
@@ -99,6 +119,35 @@ class PotholeSegmenter:
                     mask=mask
                 )
                 
+                detections.append(detection)
+                
+                # Separate by class
+                if class_id == 0:  # Pothole
+                    pothole_masks.append(mask)
+                elif class_id == 1:  # Reference object
+                    reference_masks.append(mask)
+        else:
+            # Detection-only model: fill bbox as mask approximation
+            for i, (box, cls) in enumerate(zip(
+                results.boxes.xyxy,
+                results.boxes.cls
+            )):
+                class_id = int(cls.item())
+                confidence = float(results.boxes.conf[i].item())
+                
+                # Convert box to integers
+                x1, y1, x2, y2 = map(int, box.tolist())
+                
+                # Create mask from bbox
+                mask = self._bbox_to_mask((x1, y1, x2, y2), img_h, img_w)
+                
+                detection = Detection(
+                    class_id=class_id,
+                    class_name=self.class_names.get(class_id, 'unknown'),
+                    confidence=confidence,
+                    bbox=(x1, y1, x2, y2),
+                    mask=mask
+                )
                 detections.append(detection)
                 
                 # Separate by class
@@ -144,16 +193,7 @@ class PotholeSegmenter:
         detections: List[Detection],
         class_id: int
     ) -> Optional[Detection]:
-        """
-        Get largest detection of specific class (by mask area)
-        
-        Args:
-            detections: List of detections
-            class_id: Class to filter (0=pothole, 1=reference_object)
-            
-        Returns:
-            Largest detection or None
-        """
+        """Get largest detection of specific class (by mask area)."""
         filtered = [d for d in detections if d.class_id == class_id]
         
         if not filtered:
@@ -166,7 +206,7 @@ class PotholeSegmenter:
 
 if __name__ == "__main__":
     # Example usage
-    segmenter = PotholeSegmenter("models/weights/yolov8_seg.pt")
+    segmenter = PotholeSegmenter("models/weights/pothole_det/best.pt")
     
     # Load test image
     image = cv2.imread("test_image.jpg")
@@ -176,7 +216,6 @@ if __name__ == "__main__":
     results = segmenter.detect(image, visualize=True)
     
     print(f"Found {len(results['pothole_masks'])} potholes")
-    print(f"Found {len(results['reference_masks'])} reference objects")
     
     # Show annotated image
     if 'annotated_image' in results:

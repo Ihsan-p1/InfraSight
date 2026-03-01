@@ -3,16 +3,19 @@
 # Model Configurations
 models:
   yolo:
-    architecture: "yolov8n-seg"  # Nano version for speed
-    weights_path: "models/weights/yolov8_seg.pt"
-    conf_threshold: 0.25
+    architecture: "yolov8m-seg"  # Segmentation model (pretrained + fine-tuned)
+    # Priority: fine-tuned > pretrained > old detection model
+    weights_path: "runs/detect/models/weights/pothole_seg/finetuned_v1/weights/best.pt"
+    weights_fallback: "models/weights/pretrained/yolov8m-pothole-seg.pt"
+    weights_legacy: "models/weights/pothole_det/best.pt"
+    conf_threshold: 0.25  # Restored — finetuned model has high confidence
     iou_threshold: 0.45
     classes:
       0: "pothole"
       1: "reference_object"  # card or coin
   
   depth:
-    model_name: "depth-anything/Depth-Anything-V2-Small"
+    model_name: "depth-anything/Depth-Anything-V2-Small-hf"  # -hf variant for transformers
     device: "cuda"  # or "cpu"
 
 # Reference Object Specifications (in cm) - CARD PRIORITIZED
@@ -32,6 +35,20 @@ volumetric:
   calibration_constant: 30.0  # Empirical: multiply normalized depth to get cm
   depth_percentile: 10  # Use bottom 10% deepest pixels for pothole depth
   min_pothole_area_px: 100  # Minimum pothole area in pixels
+
+# Severity Classification
+severity:
+  weight_depth: 0.40
+  weight_area: 0.30
+  weight_volume: 0.30
+
+# Repair Cost Estimation (IDR)
+repair:
+  currency: "IDR"
+  labor_rates:
+    throw_and_roll: 50000
+    semi_permanent: 150000
+    full_depth: 500000
 
 # Dataset Paths
 data:
