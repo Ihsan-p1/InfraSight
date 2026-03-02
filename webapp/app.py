@@ -25,7 +25,7 @@ from src.core.calibration import Calibrator
 from src.core.volumetric import VolumetricCalculator
 from src.core.severity import SeverityClassifier
 from src.core.repair_advisor import RepairAdvisor
-from src.visualization.mesh_3d import Mesh3DVisualizer
+from src.visualization.mesh_engine import Mesh3DVisualizer
 from src.models.material_classifier import MaterialClassifier
 from src.core.history_manager import HistoryManager
 from src.core.report_generator import ReportGenerator
@@ -269,7 +269,7 @@ def run_analysis(image_np, segmenter, depth_estimator, material_classifier, conf
 # --- Page: Analysis ---
 def page_analyze():
     st.markdown('<h1 class="premium-header">Analyze</h1>', unsafe_allow_html=True)
-    st.markdown("Upload satu atau lebih foto untuk analisis tomografi lubang jalan.")
+    st.markdown("Upload one or more photos for advanced pothole tomography and volumetric analysis.")
     
     # Threshold Controls
     col_t1, col_t2 = st.columns(2)
@@ -283,7 +283,7 @@ def page_analyze():
     files = st.file_uploader("Upload Images", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
     
     if files:
-        if st.button("MULAI ANALISIS BATCH"):
+        if st.button("START BATCH ANALYSIS"):
             progress_bar = st.progress(0)
             status_text = st.empty()
             
@@ -309,6 +309,7 @@ def page_analyze():
                         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                         img_path = save_dir / f"annotated_{ts}_{file.name}"
                         cv2.imwrite(str(img_path), cv2.cvtColor(res['annotated'], cv2.COLOR_RGB2BGR))
+                        res['annotated_path'] = str(img_path)
                         
                         # GPS extraction
                         temp_path = ROOT_DIR / f"tmp_exif_{file.name}"
@@ -337,18 +338,18 @@ def page_analyze():
                         res['image_name'] = file.name
                         batch_results.append(res)
                     else:
-                        st.warning(f"{file.name}: Tidak ada lubang yang terdeteksi (Conf > {conf_t})")
+                        st.warning(f"{file.name}: No potholes detected (Conf > {conf_t})")
                 
                 except Exception as e:
-                    st.error(f"{file.name}: Error saat memproses — {str(e)}")
+                    st.error(f"{file.name}: Error during processing — {str(e)}")
                 
                 progress_bar.progress((i + 1) / len(files))
             
             if batch_results:
-                status_text.success(f"Berhasil memproses {len(batch_results)}/{len(files)} gambar!")
+                status_text.success(f"Successfully processed {len(batch_results)}/{len(files)} images!")
                 st.session_state['batch_results'] = batch_results
             else:
-                status_text.error("Gagal memproses gambar. Pastikan gambar berisi lubang jalan yang jelas atau turunkan Confidence Threshold.")
+                status_text.error("Processing failed. Ensure images show clear potholes or lower the Confidence Threshold.")
 
     # Display results
     if 'batch_results' in st.session_state:
@@ -356,23 +357,27 @@ def page_analyze():
             num_holes = len(res['potholes'])
             with st.expander(f"Image Analysis: {res['image_name']} - {num_holes} Pothole(s) Detected ({res['summary']['severity_level']})", expanded=(i==0)):
                 cols = st.columns([1, 1, 1])
-                with cols[0]: st.image(res['annotated'], caption="Detection Visualization")
+                with cols[0]: st.image(res['annotated'], caption="Detection Visualization", width="stretch")
 
                 # Detailed analysis tabs
-                pothole_tabs = st.tabs([f"Lubang #{p+1}" for p in range(num_holes)])
+                pothole_tabs = st.tabs([f"Pothole #{p+1}" for p in range(num_holes)])
                 
                 for p_idx, p_res in enumerate(res['potholes']):
                     with pothole_tabs[p_idx]:
                         tab_cols = st.columns(2)
                         with tab_cols[0]:
-                            # 3D Visualizer (Textured Replica)
+                            # 3D Visualizer (Premium)
                             viz = Mesh3DVisualizer()
-                            fig = viz.create_pothole_mesh_cropped(
+                            fig = viz.create_premium_pothole_mesh(
                                 res['depth_raw'], 
-                                p_res['pothole_mask'], 
-                                image_rgb=res['original_rgb']
+                                p_res['pothole_mask'],
+                                metrics={
+                                    'depth': p_res['volumetric'].avg_depth_cm,
+                                    'area': p_res['volumetric'].area_cm2, # Keep in cm2
+                                    'severity': p_res['severity'].level
+                                }
                             )
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, width="stretch", key=f"plotly_{i}_{p_idx}")
                         
                         with tab_cols[1]:
                             # Severity & Repair Analysis
@@ -382,14 +387,14 @@ def page_analyze():
                             
                             rep = p_res['repair']
                             st.markdown("---")
-                            st.write("### Rekomendasi Perbaikan")
-                            st.write(f"**Metode:** {rep.method}")
-                            st.write(f"**Material Jalan:** {p_res['surface_type'].capitalize()} ({p_res['surface_conf']:.2f})")
-                            st.metric("Estimasi Biaya", f"Rp {rep.total_cost_idr:,.0f}")
+                            st.write("### Repair Recommendation")
+                            st.write(f"**Method:** {rep.method}")
+                            st.write(f"**Road Material:** {p_res['surface_type'].capitalize()} ({p_res['surface_conf']:.2f})")
+                            st.metric("Estimated Cost", f"Rp {rep.total_cost_idr:,.0f}")
                             
                             # Material Breakdown
-                            st.write("**Detail Bahan:**")
-                            st.write(f"- Utama ({rep.material_name}): {rep.material_kg:.2f} kg")
+                            st.write("**Material Details:**")
+                            st.write(f"- Main ({rep.material_name}): {rep.material_kg:.2f} kg")
                             st.write(f"- Sealant: {p_res['volumetric'].area_cm2 * 0.0001:.3f} L")
                             
                 # Report Generation Section
@@ -407,7 +412,9 @@ def page_analyze():
                         'repair_method': report_res['summary']['repair_method'],
                         'repair_cost_idr': report_res['summary']['repair_cost_idr'],
                         'repair_material_kg': report_res['summary']['repair_material_kg'],
-                        'annotated_path': None
+                        'annotated_path': report_res.get('annotated_path'),
+                        'latitude': report_res.get('latitude'), # Fix missing lat/lon in summary report
+                        'longitude': report_res.get('longitude')
                     }
                     pdf_path = report_gen.generate_pdf_report(report_data)
                     with open(pdf_path, "rb") as f:
@@ -428,7 +435,7 @@ def page_history():
     
     history = history_mgr.get_all_history()
     if not history:
-        st.info("Belum ada riwayat analisis.")
+        st.info("No analysis history available yet.")
         return
         
     df_data = []
@@ -451,7 +458,7 @@ def page_map():
     valid_coords = [h for h in history if h.latitude is not None and h.longitude is not None]
     
     if not valid_coords:
-        st.warning("Tidak ada data GPS dalam histori. Upload foto dengan metadata GPS untuk melihat peta.")
+        st.warning("No GPS data found in history. Upload photos with GPS metadata to view markers.")
         # Default center (Jakarta)
         m = folium.Map(location=[-6.2088, 106.8456], zoom_start=12)
     else:
@@ -462,7 +469,7 @@ def page_map():
             color = 'red' if h.severity_level == 'CRITICAL' else 'orange' if h.severity_level == 'HIGH' else 'blue'
             folium.Marker(
                 [h.latitude, h.longitude],
-                popup=f"ID: {h.id}\nSev: {h.severity_level}\nCost: Rp {h.repair_cost_idr:,.0f}",
+                popup=f"ID: {h.id}\nSev: {h.severity_level}\nCost: IDR {h.repair_cost_idr:,.0f}",
                 tooltip=h.image_name,
                 icon=folium.Icon(color=color)
             ).add_to(m)
