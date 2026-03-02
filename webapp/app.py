@@ -182,10 +182,10 @@ def run_analysis(image_np, segmenter, depth_estimator, material_classifier, conf
     if not seg_results['detections']:
         return None
     
-    pothole_det = segmenter.get_largest_detection(seg_results['detections'], 0)
+    potholes = [det for det in seg_results['detections'] if det.class_id == 0]
     ref_det = segmenter.get_largest_detection(seg_results['detections'], 1)
     
-    if not pothole_det:
+    if not potholes:
         return None
         
     # Depth
@@ -194,7 +194,7 @@ def run_analysis(image_np, segmenter, depth_estimator, material_classifier, conf
     # Calibration & Volumetric
     ref_type = 'estimated'
     ref_area = 45.9 # default card
-    ref_mask = pothole_det.mask
+    ref_mask = None
     
     if ref_det:
         ref_type = Calibrator.detect_reference_type(ref_det.mask, ref_det.bbox)
@@ -202,41 +202,68 @@ def run_analysis(image_np, segmenter, depth_estimator, material_classifier, conf
         ref_mask = ref_det.mask
         
     calc = VolumetricCalculator(config['volumetric']['calibration_constant'])
-    vol_res = calc.calculate_volume(
-        pothole_det.mask, ref_mask, pothole_det.bbox, depth_map, 
-        ref_area, ref_type
-    )
     
-    # Material Classification (Crop pothole from raw image)
-    x1, y1, x2, y2 = pothole_det.bbox
-    x1, y1, x2, y2 = max(0, int(x1)), max(0, int(y1)), min(image_np.shape[1], int(x2)), min(image_np.shape[0], int(y2))
-    pothole_crop = image_np[y1:y2, x1:x2]
+    results_list = []
     
-    mat_res = None
-    surface_type = "asphalt" # default
-    if pothole_crop.size > 0:
-        mat_res = material_classifier.predict(pothole_crop)
-        # Use detected material if confidence is high enough
-        if mat_res['confidence'] >= config.get('models', {}).get('material', {}).get('confidence_threshold', 0.6):
-            surface_type = mat_res['class']
-            
-    # Severity & Repair
-    sev_res = SeverityClassifier().classify(vol_res.avg_depth_cm, vol_res.area_cm2, vol_res.volume_cm3)
-    rep_res = RepairAdvisor().recommend(
-        vol_res.volume_cm3, vol_res.avg_depth_cm, vol_res.area_cm2, 
-        severity_level=sev_res.level, surface_type=surface_type
-    )
+    for pothole_det in potholes:
+        # Volumetric
+        p_mask = pothole_det.mask
+        combined_ref_mask = ref_mask if ref_mask is not None else p_mask
+        
+        vol_res = calc.calculate_volume(
+            p_mask, combined_ref_mask, pothole_det.bbox, depth_map, 
+            ref_area, ref_type
+        )
+        
+        # Material Classification (Crop pothole from raw image)
+        x1, y1, x2, y2 = pothole_det.bbox
+        x1, y1, x2, y2 = max(0, int(x1)), max(0, int(y1)), min(image_np.shape[1], int(x2)), min(image_np.shape[0], int(y2))
+        pothole_crop = image_np[y1:y2, x1:x2]
+        
+        mat_res = None
+        surface_type = "asphalt" # default
+        if pothole_crop.size > 0:
+            mat_res = material_classifier.predict(pothole_crop)
+            # Use detected material if confidence is high enough
+            if mat_res['confidence'] >= config.get('models', {}).get('material', {}).get('confidence_threshold', 0.6):
+                surface_type = mat_res['class']
+                
+        # Severity & Repair
+        sev_res = SeverityClassifier().classify(vol_res.avg_depth_cm, vol_res.area_cm2, vol_res.volume_cm3)
+        rep_res = RepairAdvisor().recommend(
+            vol_res.volume_cm3, vol_res.avg_depth_cm, vol_res.area_cm2, 
+            severity_level=sev_res.level, surface_type=surface_type
+        )
+        
+        results_list.append({
+            'volumetric': vol_res,
+            'severity': sev_res,
+            'repair': rep_res,
+            'surface_type': surface_type,
+            'surface_conf': mat_res['confidence'] if mat_res else 0.0,
+            'pothole_mask': p_mask
+        })
+        
+    highest_severity_pothole = sorted(results_list, key=lambda x: x['severity'].score, reverse=True)[0]
+    total_area = sum(p['volumetric'].area_cm2 for p in results_list)
+    total_vol = sum(p['volumetric'].volume_cm3 for p in results_list)
+    total_cost = sum(p['repair'].total_cost_idr for p in results_list)
     
     return {
         'annotated': seg_results['annotated_image'],
         'depth_viz': depth_estimator.visualize_depth(depth_map),
-        'volumetric': vol_res,
-        'severity': sev_res,
-        'repair': rep_res,
-        'surface_type': surface_type,
-        'surface_conf': mat_res['confidence'] if mat_res else 0.0,
+        'potholes': results_list,
+        'summary': {
+            'area_cm2': total_area,
+            'volume_cm3': total_vol,
+            'severity_level': highest_severity_pothole['severity'].level,
+            'severity_score': highest_severity_pothole['severity'].score,
+            'repair_method': highest_severity_pothole['repair'].method_id if len(results_list) == 1 else "Multiple",
+            'repair_cost_idr': total_cost,
+            'repair_material_kg': sum(p['repair'].material_kg for p in results_list)
+        },
         'depth_raw': depth_map,
-        'pothole_mask': pothole_det.mask
+        'original_rgb': image_np
     }
 
 # --- Page: Analysis ---
@@ -292,14 +319,14 @@ def page_analyze():
                         db_data = {
                             'image_name': file.name,
                             'image_path': str(img_path),
-                            'area_cm2': res['volumetric'].area_cm2,
-                            'avg_depth_cm': res['volumetric'].avg_depth_cm,
-                            'volume_cm3': res['volumetric'].volume_cm3,
-                            'severity_level': res['severity'].level,
-                            'severity_score': res['severity'].score,
-                            'repair_method': res['repair'].method_id,
-                            'repair_cost_idr': res['repair'].total_cost_idr,
-                            'repair_material_kg': res['repair'].material_kg,
+                            'area_cm2': res['summary']['area_cm2'],
+                            'avg_depth_cm': res['potholes'][0]['volumetric'].avg_depth_cm, # representative
+                            'volume_cm3': res['summary']['volume_cm3'],
+                            'severity_level': res['summary']['severity_level'],
+                            'severity_score': res['summary']['severity_score'],
+                            'repair_method': res['summary']['repair_method'],
+                            'repair_cost_idr': res['summary']['repair_cost_idr'],
+                            'repair_material_kg': res['summary']['repair_material_kg'],
                             'latitude': lat,
                             'longitude': lon
                         }
@@ -326,51 +353,74 @@ def page_analyze():
     # Display results
     if 'batch_results' in st.session_state:
         for i, res in enumerate(st.session_state['batch_results']):
-            with st.expander(f"Image: {res['image_name']} - {res['severity'].level}", expanded=(i==0)):
+            num_holes = len(res['potholes'])
+            with st.expander(f"Image Analysis: {res['image_name']} - {num_holes} Pothole(s) Detected ({res['summary']['severity_level']})", expanded=(i==0)):
                 cols = st.columns([1, 1, 1])
-                with cols[0]: st.image(res['annotated'], caption="Detection")
-                with cols[1]:
-                    # 3D Visualizer
-                    viz = Mesh3DVisualizer()
-                    fig = viz.create_pothole_mesh_cropped(res['depth_raw'], res['pothole_mask'])
-                    st.plotly_chart(fig, use_container_width=True)
+                with cols[0]: st.image(res['annotated'], caption="Detection Visualization")
+
+                # Detailed analysis tabs
+                pothole_tabs = st.tabs([f"Lubang #{p+1}" for p in range(num_holes)])
                 
-                with cols[2]:
-                    # Severity & Repair
-                    sev = res['severity']
-                    st.markdown(f'<div class="severity-badge" style="background:{sev.color}">SEVERITY: {sev.level}</div>', unsafe_allow_html=True)
-                    st.write(f"**Score:** {sev.score}/10")
-                    
-                    rep = res['repair']
-                    st.markdown("---")
-                    st.write("### Perbaikan")
-                    st.write(f"**Metode:** {rep.method_id}")
-                    st.write(f"**Material Jalan:** {res['surface_type'].capitalize()} ({res['surface_conf']:.2f})")
-                    st.metric("Estimasi Biaya", f"Rp {rep.total_cost_idr:,.0f}")
-                    
-                    # Material Breakdown
-                    st.write("**Bahan:**")
-                    st.write(f"- Aspal: {rep.material_kg:.2f} kg")
-                    st.write(f"- Sealant: {res['volumetric'].area_cm2 * 0.0001:.3f} L")
-                    
-                    if st.button(f"Download Report PDF #{i}", key=f"pdf_{i}"):
-                        # Prepare data for report generator
-                        report_data = {
-                            'image_name': res['image_name'],
-                            'area_cm2': res['volumetric'].area_cm2,
-                            'avg_depth_cm': res['volumetric'].avg_depth_cm,
-                            'volume_cm3': res['volumetric'].volume_cm3,
-                            'severity_level': sev.level,
-                            'severity_score': sev.score,
-                            'repair_method': rep.method_id,
-                            'repair_cost_idr': rep.total_cost_idr,
-                            'repair_material_kg': rep.material_kg,
-                            'annotated_path': None # We'd need to fetch from DB or save again
-                        }
-                        # For simplicity, we skip path for now or use the one we saved
-                        pdf_path = report_gen.generate_pdf_report(report_data)
-                        with open(pdf_path, "rb") as f:
-                            st.download_button("Klik untuk Download", f, file_name=f"Report_{res['image_name']}.pdf")
+                for p_idx, p_res in enumerate(res['potholes']):
+                    with pothole_tabs[p_idx]:
+                        tab_cols = st.columns(2)
+                        with tab_cols[0]:
+                            # 3D Visualizer (Textured Replica)
+                            viz = Mesh3DVisualizer()
+                            fig = viz.create_pothole_mesh_cropped(
+                                res['depth_raw'], 
+                                p_res['pothole_mask'], 
+                                image_rgb=res['original_rgb']
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                        
+                        with tab_cols[1]:
+                            # Severity & Repair Analysis
+                            sev = p_res['severity']
+                            st.markdown(f'<div class="severity-badge" style="background:{sev.color}">SEVERITY: {sev.level}</div>', unsafe_allow_html=True)
+                            st.write(f"**Severity Score:** {sev.score}/10")
+                            
+                            rep = p_res['repair']
+                            st.markdown("---")
+                            st.write("### Rekomendasi Perbaikan")
+                            st.write(f"**Metode:** {rep.method}")
+                            st.write(f"**Material Jalan:** {p_res['surface_type'].capitalize()} ({p_res['surface_conf']:.2f})")
+                            st.metric("Estimasi Biaya", f"Rp {rep.total_cost_idr:,.0f}")
+                            
+                            # Material Breakdown
+                            st.write("**Detail Bahan:**")
+                            st.write(f"- Utama ({rep.material_name}): {rep.material_kg:.2f} kg")
+                            st.write(f"- Sealant: {p_res['volumetric'].area_cm2 * 0.0001:.3f} L")
+                            
+                # Report Generation Section
+                st.markdown("---")
+                
+                # Use a specific function to handle download to avoid closure issues in loops
+                def prepare_pdf_download(report_res, idx):
+                    report_data = {
+                        'image_name': report_res['image_name'],
+                        'area_cm2': report_res['summary']['area_cm2'],
+                        'avg_depth_cm': sum(p['volumetric'].avg_depth_cm for p in report_res['potholes'])/len(report_res['potholes']),
+                        'volume_cm3': report_res['summary']['volume_cm3'],
+                        'severity_level': report_res['summary']['severity_level'],
+                        'severity_score': report_res['summary']['severity_score'],
+                        'repair_method': report_res['summary']['repair_method'],
+                        'repair_cost_idr': report_res['summary']['repair_cost_idr'],
+                        'repair_material_kg': report_res['summary']['repair_material_kg'],
+                        'annotated_path': None
+                    }
+                    pdf_path = report_gen.generate_pdf_report(report_data)
+                    with open(pdf_path, "rb") as f:
+                        return f.read()
+
+                pdf_bytes = prepare_pdf_download(res, i)
+                st.download_button(
+                    label=f"Download Full Analysis Report PDF (Image #{i+1})",
+                    data=pdf_bytes,
+                    file_name=f"Report_{res['image_name']}.pdf",
+                    mime="application/pdf",
+                    key=f"dl_btn_{i}"
+                )
 
 # --- Page: History ---
 def page_history():

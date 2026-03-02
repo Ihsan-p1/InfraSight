@@ -13,6 +13,7 @@ class Mesh3DVisualizer:
     def create_pothole_mesh(
         depth_map: np.ndarray,
         pothole_mask: Optional[np.ndarray] = None,
+        image_rgb: Optional[np.ndarray] = None,
         title: str = "Pothole 3D Profile",
         colorscale: str = "Viridis"
     ) -> go.Figure:
@@ -28,23 +29,54 @@ class Mesh3DVisualizer:
         Returns:
             Plotly Figure object (interactive in Streamlit)
         """
-        # Apply mask if provided
-        if pothole_mask is not None:
-            # Invert depth map and apply mask
-            z_values = -depth_map * pothole_mask
+        # Handle depth map inversion
+        z_values = -depth_map.copy().astype(float)
+        
+        # Apply mask if provided and NO RGB image is used
+        # (Plotly WebGL fails to render surfacecolor mapped meshes if z contains NaNs)
+        if pothole_mask is not None and image_rgb is None:
             # Set non-pothole areas to NaN for transparency
-            z_values = z_values.astype(float)
             z_values[pothole_mask == 0] = np.nan
+        
+        # Handle RGB Texture mapping
+        if image_rgb is not None:
+            # We use a more stable approach for Streamlit:
+            # 1. Convert RGB image to a single index array (0-255)
+            # 2. Provide a 256-color custom colorscale
+            
+            from PIL import Image
+            img_pil = Image.fromarray(image_rgb)
+            # Quantize to 256 colors using PIL (highly optimized)
+            img_quant = img_pil.quantize(colors=256, method=Image.Quantize.FASTOCTREE)
+            
+            # Get the palette and reshape to (256, 3)
+            palette = np.array(img_quant.getpalette()[:256*3]).reshape(-1, 3)
+            
+            # Create Plotly colorscale from palette
+            custom_colorscale = []
+            for i, (r, g, b) in enumerate(palette):
+                custom_colorscale.append([i/255.0, f"rgb({r},{g},{b})"])
+            
+            surfacecolor = np.array(img_quant).astype(float)
+            active_colorscale = custom_colorscale
+            cmin, cmax = 0, 255
+            showscale = False
         else:
-            # Invert entire depth map to show depression
-            z_values = -depth_map
+            surfacecolor = z_values
+            active_colorscale = colorscale
+            cmin, cmax = None, None
+            showscale = True
         
         # Create surface plot
         fig = go.Figure(data=[go.Surface(
             z=z_values,
-            colorscale=colorscale,
-            showscale=True,
-            colorbar=dict(title="Depth (relative)")
+            surfacecolor=surfacecolor,
+            colorscale=active_colorscale,
+            cmin=cmin,
+            cmax=cmax,
+            showscale=showscale,
+            lighting=dict(ambient=0.6, diffuse=0.8, roughness=0.9, specular=0.1),
+            colorbar=dict(title="Depth (relative)") if showscale else None
         )])
         
         # Update layout
@@ -69,6 +101,7 @@ class Mesh3DVisualizer:
     def create_pothole_mesh_cropped(
         depth_map: np.ndarray,
         pothole_mask: np.ndarray,
+        image_rgb: Optional[np.ndarray] = None,
         padding: int = 20
     ) -> go.Figure:
         """
@@ -96,10 +129,21 @@ class Mesh3DVisualizer:
         depth_cropped = depth_map[y_min:y_max, x_min:x_max]
         mask_cropped = pothole_mask[y_min:y_max, x_min:x_max]
         
+        img_cropped = None
+        if image_rgb is not None:
+            # Note: depth_map from DepthAnythingV2 is 518x518, while image_rgb might be original size.
+            # We must ensure the texture crop matches the depth crop size.
+            import cv2
+            img_cropped_raw = image_rgb[y_min:y_max, x_min:x_max]
+            # Resize image to match the depth crop exactly
+            if img_cropped_raw.size > 0:
+                img_cropped = cv2.resize(img_cropped_raw, (depth_cropped.shape[1], depth_cropped.shape[0]))
+        
         # Create mesh
         return Mesh3DVisualizer.create_pothole_mesh(
             depth_cropped,
             mask_cropped,
+            image_rgb=img_cropped,
             title="Pothole 3D Profile (Zoomed)",
             colorscale="Inferno"
         )

@@ -171,66 +171,66 @@ class RepairAdvisor:
         """Get procedural steps for repair method"""
         if method == 'throw_and_roll':
             return [
-                RepairStep(1, "Bersihkan", "Buang debris dan air dari lubang", 5),
-                RepairStep(2, "Isi Material", "Tuang cold mix asphalt ke lubang", 5),
-                RepairStep(3, "Ratakan", "Ratakan permukaan dengan sekop", 3),
-                RepairStep(4, "Padatkan", "Gilas dengan ban kendaraan 2-3 kali", 5),
+                RepairStep(1, "Clean", "Remove debris and water from the pothole", 5),
+                RepairStep(2, "Fill", "Pour cold mix asphalt into the pothole", 5),
+                RepairStep(3, "Level", "Level the surface using a shovel", 3),
+                RepairStep(4, "Compact", "Compact with vehicle tires 2-3 times", 5),
             ]
         elif method == 'semi_permanent':
             return [
-                RepairStep(1, "Bersihkan", "Buang semua debris, air, dan material lepas", 10),
-                RepairStep(2, "Potong Tepi", "Buat tepi vertikal/kotak di sekitar lubang", 15),
-                RepairStep(3, "Tack Coat", "Aplikasikan emulsi aspal di dasar dan tepi", 5),
-                RepairStep(4, "Isi Material", "Tuang hot mix asphalt secara berlapis", 10),
-                RepairStep(5, "Padatkan", "Padatkan dengan vibratory compactor", 10),
-                RepairStep(6, "Level", "Periksa kerataan permukaan", 5),
+                RepairStep(1, "Clean", "Remove all debris, water, and loose material", 10),
+                RepairStep(2, "Square Up", "Create vertical/square edges around the pothole", 15),
+                RepairStep(3, "Tack Coat", "Apply asphalt emulsion to the bottom and edges", 5),
+                RepairStep(4, "Fill", "Pour hot mix asphalt in layers", 10),
+                RepairStep(5, "Compact", "Compact with a vibratory plate compactor", 10),
+                RepairStep(6, "Level", "Check surface flatness", 5),
             ]
         else:  # full_depth
             return [
-                RepairStep(1, "Marking", "Tandai area perbaikan lebih besar dari lubang", 10),
-                RepairStep(2, "Potong", "Potong aspal lama dengan saw cutter", 30),
-                RepairStep(3, "Buang", "Angkat dan buang material lama", 20),
-                RepairStep(4, "Base Prep", "Siapkan dan padatkan base course", 30),
-                RepairStep(5, "Tack Coat", "Aplikasikan emulsi aspal pada semua permukaan", 10),
-                RepairStep(6, "Paving", "Tuang hot mix asphalt berlapis-lapis", 20),
-                RepairStep(7, "Compact", "Padatkan dengan roller compactor", 15),
-                RepairStep(8, "Finishing", "Segel tepi dan periksa kerataan", 15),
+                RepairStep(1, "Marking", "Mark the repair area larger than the pothole", 10),
+                RepairStep(2, "Cutting", "Cut old asphalt using a saw cutter", 30),
+                RepairStep(3, "Removal", "Remove and dispose of old material", 20),
+                RepairStep(4, "Base Prep", "Prepare and compact the base course", 30),
+                RepairStep(5, "Tack Coat", "Apply asphalt emulsion to all surfaces", 10),
+                RepairStep(6, "Paving", "Pour hot mix asphalt in multiple layers", 20),
+                RepairStep(7, "Compact", "Compact with a roller compactor", 15),
+                RepairStep(8, "Finishing", "Seal edges and check surface flatness", 15),
             ]
     
     def _get_tools(self, method: str) -> List[str]:
         """Get required tools for repair method"""
         if method == 'throw_and_roll':
-            return ["Sekop", "Sapu", "Cold mix asphalt"]
+            return ["Shovel", "Broom", "Cold mix asphalt"]
         elif method == 'semi_permanent':
-            return ["Sekop", "Sapu", "Pahat/chisel", "Emulsi aspal", 
+            return ["Shovel", "Broom", "Chisel", "Asphalt emulsion", 
                     "Hot mix asphalt", "Vibratory plate compactor"]
         else:
-            return ["Saw cutter", "Jackhammer", "Sekop", "Dump truck",
-                    "Roller compactor", "Emulsi aspal", "Hot mix asphalt",
+            return ["Saw cutter", "Jackhammer", "Shovel", "Dump truck",
+                    "Roller compactor", "Asphalt emulsion", "Hot mix asphalt",
                     "Base course material", "Leveling tools"]
     
     def _estimate_durability(self, method: str) -> int:
         """Estimated repair lifespan in months"""
         return {
-            'throw_and_roll': 3,      # Temporary: 3 months
-            'semi_permanent': 18,     # Semi-permanent: 1.5 years
-            'full_depth': 60,         # Full repair: 5 years
+            'throw_and_roll': 3,      # Temporary fix
+            'semi_permanent': 18,     # Semi-permanent patch
+            'full_depth': 60,         # Permanent reconstruction
         }[method]
     
     def _generate_notes(self, method: str, material_kg: float, depth_cm: float) -> str:
-        """Generate contextual notes"""
+        """Generate technical notes"""
         notes = []
         
         if method == 'throw_and_roll':
-            notes.append("⚡ Perbaikan sementara — perlu ditinjaklanjuti dalam 3 bulan.")
+            notes.append("Temporary repair - follow-up required within 3 months.")
         
         if material_kg > 50:
-            notes.append(f"📦 Material {material_kg:.1f} kg — perlu kendaraan pengangkut.")
+            notes.append(f"Material {material_kg:.1f} kg - transport vehicle recommended.")
         
         if depth_cm > 10:
-            notes.append("⚠️ Kedalaman >10cm — periksa base layer dan drainase.")
+            notes.append("Depth >10cm - check base layer and drainage.")
         
-        return " ".join(notes) if notes else "Perbaikan standar dapat dilakukan."
+        return " ".join(notes) if notes else "Standard repair procedure recommended."
     
     def format_cost_idr(self, amount: float) -> str:
         """Format IDR amount with thousands separator"""

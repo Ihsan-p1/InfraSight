@@ -16,7 +16,6 @@ Build a comprehensive Computer Vision system capable of:
 - Repair material recommendations with cost estimation
 - GPS-based pothole location mapping for infrastructure planning
 
-**Academic Target**: Outstanding (A+) grade through sophisticated multi-model integration and real-world application
 
 ### Technical Strategy
 
@@ -31,7 +30,7 @@ Build a comprehensive Computer Vision system capable of:
 
 ## Features
 
-### Core MVP (Phase 1-6)
+### Core Features
 - Instance segmentation of potholes and reference objects
 - Monocular depth map generation using Depth Anything V2
 - Volumetric calculation (area, depth, volume in cm³)
@@ -39,7 +38,7 @@ Build a comprehensive Computer Vision system capable of:
 - Interactive 3D visualization using Plotly
 - Web-based interface built with Streamlit
 
-### Advanced Features (Phase 7 - Enhancement Module)
+### Advanced Features
 - **Material Classification**: Automated road surface type detection (asphalt/concrete/paving)
 - **Repair Recommendation**: Calculation of required materials (kg) and cost estimation (IDR)
 - **GPS Geolocation**: Location extraction from photo EXIF metadata with reverse geocoding

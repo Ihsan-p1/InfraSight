@@ -46,8 +46,8 @@ class SeverityClassifier:
             'color': '#4CAF50',        # Green
             'label_id': 'Ringan',
             'label_en': 'Low',
-            'priority': 'Terjadwal (30 hari)',
-            'risk': 'Risiko rendah — ketidaknyamanan kecil',
+            'priority': 'Scheduled (30 days)',
+            'risk': 'Low risk - minor discomfort',
             'repair_days': 30,
         },
         'MEDIUM': {
@@ -58,8 +58,8 @@ class SeverityClassifier:
             'color': '#FF9800',        # Orange
             'label_id': 'Sedang',
             'label_en': 'Medium',
-            'priority': 'Prioritas (7 hari)',
-            'risk': 'Risiko sedang — potensi kerusakan ban',
+            'priority': 'Priority (7 days)',
+            'risk': 'Medium risk - potential tire damage',
             'repair_days': 7,
         },
         'HIGH': {
@@ -70,8 +70,8 @@ class SeverityClassifier:
             'color': '#F44336',        # Red
             'label_id': 'Parah',
             'label_en': 'High',
-            'priority': 'Urgent (3 hari)',
-            'risk': 'Risiko tinggi — kerusakan kendaraan & kecelakaan',
+            'priority': 'Urgent (3 days)',
+            'risk': 'High risk - vehicle damage & accident potential',
             'repair_days': 3,
         },
         'CRITICAL': {
@@ -82,8 +82,8 @@ class SeverityClassifier:
             'color': '#9C27B0',        # Purple
             'label_id': 'Kritis',
             'label_en': 'Critical',
-            'priority': 'Darurat (24 jam)',
-            'risk': 'Risiko kritis — bahaya keselamatan langsung',
+            'priority': 'Emergency (24 hours)',
+            'risk': 'Critical risk - immediate safety hazard',
             'repair_days': 1,
         },
     }
@@ -129,10 +129,10 @@ class SeverityClassifier:
         level = self._score_to_level(score)
         config = self.THRESHOLDS[level]
         
-        # Build description
+        # Build technical description
         description = (
-            f"Kedalaman {depth_cm:.1f} cm, "
-            f"luas {area_cm2:.0f} cm², "
+            f"Depth {depth_cm:.1f} cm, "
+            f"area {area_cm2:.0f} cm², "
             f"volume {volume_cm3:.0f} cm³. "
             f"{config['risk']}."
         )

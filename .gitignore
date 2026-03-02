@@ -53,3 +53,14 @@ Thumbs.db
 
 # Project notes
 PROJECT_SETUP_SUMMARY.md
+
+# InfraSight Specific
+reports/report_*.pdf
+reports/*.pdf
+data/infrasight.db
+test_3d_outputs/
+test_*.html
+test_*.py
+*.pt
+*.pth
+*.onnx
