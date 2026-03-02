@@ -8,6 +8,9 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
+from src.utils.logger import setup_logger
+
+logger = setup_logger("YOLOSegmentation")
 
 
 @dataclass
@@ -43,9 +46,8 @@ class PotholeSegmenter:
         self.conf_threshold = conf_threshold
         self.class_names = {0: 'pothole', 1: 'reference_object'}
         
-        # Auto-detect model task ('detect' or 'segment')
         self.is_detection_only = (self.model.task == 'detect')
-        print(f"✓ Model loaded — task: {'detection (bbox mask fallback)' if self.is_detection_only else 'segmentation'}")
+        logger.info(f"Model loaded — task: {'detection (bbox mask fallback)' if self.is_detection_only else 'segmentation'}")
     
     def _bbox_to_mask(self, bbox: Tuple[int,int,int,int], img_h: int, img_w: int) -> np.ndarray:
         """Create a filled rectangular mask from a bounding box."""
@@ -166,6 +168,7 @@ class PotholeSegmenter:
         if visualize:
             annotated = image.copy()
             
+            pothole_idx = 0
             for det in detections:
                 # Draw mask
                 color = (0, 255, 0) if det.class_id == 0 else (255, 0, 0)
@@ -177,8 +180,13 @@ class PotholeSegmenter:
                 x1, y1, x2, y2 = det.bbox
                 cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
                 
-                # Label
-                label = f"{det.class_name} {det.confidence:.2f}"
+                # Label with ID for potholes
+                if det.class_id == 0:
+                    pothole_idx += 1
+                    label = f"#{pothole_idx} {det.class_name} {det.confidence:.2f}"
+                else:
+                    label = f"{det.class_name} {det.confidence:.2f}"
+
                 cv2.putText(
                     annotated, label, (x1, y1 - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2

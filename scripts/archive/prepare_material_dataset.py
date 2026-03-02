@@ -6,7 +6,7 @@ import numpy as np
 
 def prepare_dataset():
     # Paths
-    base_dir = Path("d:/College Project/Project AI/Sem5/InfraSight")
+    base_dir = Path(__file__).parent.parent.parent.absolute()
     output_dir = base_dir / "data/processed/road_material_classification"
     
     # Texture paths (from artifacts)

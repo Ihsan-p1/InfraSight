@@ -4,6 +4,9 @@ Calibration utilities for pixel-to-real-world conversion
 import numpy as np
 from typing import Tuple, Optional
 import math
+from src.utils.logger import setup_logger
+
+logger = setup_logger("Calibrator")
 
 
 class Calibrator:
@@ -141,13 +144,13 @@ if __name__ == "__main__":
     
     # Detect type
     ref_type = Calibrator.detect_reference_type(ref_mask)
-    print(f"Detected reference type: {ref_type}")
+    logger.info(f"Detected reference type: {ref_type}")
     
     # Calculate calibration
     px_per_cm2 = Calibrator.calculate_pixels_per_cm2(ref_mask, ref_type)
-    print(f"Pixels per cm²: {px_per_cm2:.2f}")
+    logger.info(f"Pixels per cm²: {px_per_cm2:.2f}")
     
     # Convert pothole area
     pothole_pixels = 50000
     pothole_cm2 = Calibrator.pixels_to_cm2(pothole_pixels, px_per_cm2)
-    print(f"Pothole area: {pothole_cm2:.2f} cm²")
+    logger.info(f"Pothole area: {pothole_cm2:.2f} cm²")

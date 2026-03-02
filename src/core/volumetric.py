@@ -5,6 +5,9 @@ CRITICAL MODULE: Implements the core depth estimation and volume calculation
 import numpy as np
 from typing import Dict, Tuple, Optional
 from dataclasses import dataclass
+from src.utils.logger import setup_logger
+
+logger = setup_logger("Volumetric")
 
 
 @dataclass
@@ -235,7 +238,7 @@ class VolumetricCalculator:
             new_constant: New empirical calibration constant
         """
         self.calibration_constant = new_constant
-        print(f"✓ Calibration constant updated to {new_constant:.2f}")
+        logger.info(f"Calibration constant updated to {new_constant:.2f}")
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ from pathlib import Path
 def download_multiple_pothole_dataset():
     print("Initializing Roboflow...")
     # Using the API key provided by the user
-    rf = Roboflow(api_key="BIuNP6BsX47uaOad322d")
+    rf = Roboflow(api_key="REDACTED_API_KEY")
     
     print("Accessing workspace and project...")
     project = rf.workspace("anurag-road-safety-project").project("potholedetection-ak5kl")

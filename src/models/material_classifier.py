@@ -5,6 +5,9 @@ from PIL import Image
 import numpy as np
 from pathlib import Path
 import yaml
+from src.utils.logger import setup_logger
+
+logger = setup_logger("MaterialClassifier")
 
 class MaterialClassifier:
     """
@@ -41,10 +44,10 @@ class MaterialClassifier:
         model.classifier[3] = nn.Linear(num_features, len(self.CLASSES))
         
         if model_path and Path(model_path).exists():
-            print(f"🔧 Loading Material Classifier weights: {model_path}")
+            logger.info(f"Loading Material Classifier weights: {model_path}")
             model.load_state_dict(torch.load(model_path, map_location=self.device))
         else:
-            print("⚠️ No weights found for Material Classifier. Using uninitialized model.")
+            logger.warning("No weights found for Material Classifier. Using uninitialized model.")
             
         return model.to(self.device)
 

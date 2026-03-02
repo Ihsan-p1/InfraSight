@@ -11,7 +11,7 @@ from pathlib import Path
 
 def download_dataset():
     print("Initializing Roboflow...")
-    rf = Roboflow(api_key="BIuNP6BsX47uaOad322d")
+    rf = Roboflow(api_key="REDACTED_API_KEY")
     
     print("Accessing workspace and project...")
     project = rf.workspace("deteksi-lubang-jalan").project("jalan-berlubang-yufpf")

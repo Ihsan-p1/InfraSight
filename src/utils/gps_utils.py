@@ -4,6 +4,9 @@ Extracts Latitude and Longitude from image EXIF metadata.
 """
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
+from src.utils.logger import setup_logger
+
+logger = setup_logger("GPSUtils")
 
 def get_exif_data(image):
     """Returns a dictionary from the exif data of an PIL Image item. Also converts the GPS tags."""
@@ -68,5 +71,5 @@ def extract_gps(image_path):
             exif_data = get_exif_data(img)
             return get_lat_lon(exif_data)
     except Exception as e:
-        print(f"Error extracting GPS: {e}")
+        logger.error(f"Error extracting GPS: {e}")
         return None, None

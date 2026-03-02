@@ -8,6 +8,9 @@ from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from pathlib import Path
+from src.utils.logger import setup_logger
+
+logger = setup_logger("HistoryManager")
 
 Base = declarative_base()
 
@@ -81,7 +84,7 @@ class HistoryManager:
             return history_entry.id
         except Exception as e:
             session.rollback()
-            print(f"Error saving history: {e}")
+            logger.error(f"Error saving history: {e}")
             return None
         finally:
             session.close()
@@ -114,7 +117,7 @@ class HistoryManager:
             return False
         except Exception as e:
             session.rollback()
-            print(f"Error deleting entry: {e}")
+            logger.error(f"Error deleting entry: {e}")
             return False
         finally:
             session.close()

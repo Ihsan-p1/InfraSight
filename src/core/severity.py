@@ -7,6 +7,9 @@ Indonesian road conditions.
 from dataclasses import dataclass
 from typing import Dict, Optional
 import math
+from src.utils.logger import setup_logger
+
+logger = setup_logger("Severity")
 
 
 @dataclass
@@ -15,7 +18,6 @@ class SeverityResult:
     level: str              # LOW, MEDIUM, HIGH, CRITICAL
     score: int              # 1-10 numeric score
     color: str              # Hex color for visualization
-    label_id: str           # Indonesian label
     label_en: str           # English label
     description: str        # Human-readable description
     priority: str           # Repair priority
@@ -44,7 +46,6 @@ class SeverityClassifier:
             'max_volume_cm3': 500,
             'score_range': (1, 3),
             'color': '#4CAF50',        # Green
-            'label_id': 'Ringan',
             'label_en': 'Low',
             'priority': 'Scheduled (30 days)',
             'risk': 'Low risk - minor discomfort',
@@ -56,7 +57,6 @@ class SeverityClassifier:
             'max_volume_cm3': 3500,
             'score_range': (4, 5),
             'color': '#FF9800',        # Orange
-            'label_id': 'Sedang',
             'label_en': 'Medium',
             'priority': 'Priority (7 days)',
             'risk': 'Medium risk - potential tire damage',
@@ -68,7 +68,6 @@ class SeverityClassifier:
             'max_volume_cm3': 20000,
             'score_range': (6, 7),
             'color': '#F44336',        # Red
-            'label_id': 'Parah',
             'label_en': 'High',
             'priority': 'Urgent (3 days)',
             'risk': 'High risk - vehicle damage & accident potential',
@@ -80,7 +79,6 @@ class SeverityClassifier:
             'max_volume_cm3': float('inf'),
             'score_range': (9, 10),
             'color': '#9C27B0',        # Purple
-            'label_id': 'Kritis',
             'label_en': 'Critical',
             'priority': 'Emergency (24 hours)',
             'risk': 'Critical risk - immediate safety hazard',
@@ -141,7 +139,6 @@ class SeverityClassifier:
             level=level,
             score=score,
             color=config['color'],
-            label_id=config['label_id'],
             label_en=config['label_en'],
             description=description,
             priority=config['priority'],
@@ -200,9 +197,9 @@ if __name__ == "__main__":
     
     for tc in test_cases:
         result = classifier.classify(**tc)
-        print(f"\n  Input:    depth={tc['depth_cm']}cm, area={tc['area_cm2']}cm², vol={tc['volume_cm3']}cm³")
-        print(f"  Level:    {result.level} ({result.label_id}) — Score: {result.score}/10")
-        print(f"  Priority: {result.priority}")
-        print(f"  Risk:     {result.risk_level}")
+        logger.info(f"Input: depth={tc['depth_cm']}cm, area={tc['area_cm2']}cm², vol={tc['volume_cm3']}cm³")
+        logger.info(f"Level: {result.level} ({result.label_en}) — Score: {result.score}/10")
+        logger.info(f"Priority: {result.priority}")
+        logger.info(f"Risk: {result.risk_level}")
     
     print(f"\n{'='*70}")

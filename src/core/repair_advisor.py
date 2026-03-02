@@ -5,6 +5,9 @@ and estimates costs (IDR) based on pothole volume and severity.
 """
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
+from src.utils.logger import setup_logger
+
+logger = setup_logger("RepairAdvisor")
 
 
 @dataclass
@@ -20,7 +23,6 @@ class RepairStep:
 class RepairRecommendation:
     """Complete repair recommendation"""
     method: str                     # Repair method name
-    method_id: str                  # Indonesian name
     material_name: str              # Primary material
     material_kg: float              # Material needed (kg)
     material_cost_idr: float        # Material cost in IDR
@@ -125,18 +127,17 @@ class RepairAdvisor:
         
         # Method names
         method_names = {
-            'throw_and_roll': ('Throw-and-Roll', 'Lempar dan Gilas'),
-            'semi_permanent': ('Semi-Permanent Patch', 'Tambal Semi-Permanen'),
-            'full_depth': ('Full-Depth Repair', 'Perbaikan Kedalaman Penuh'),
+            'throw_and_roll': 'Throw-and-Roll',
+            'semi_permanent': 'Semi-Permanent Patch',
+            'full_depth': 'Full-Depth Repair',
         }
-        method_en, method_id = method_names[method_key]
+        method_en = method_names[method_key]
         
         # Notes
         notes = self._generate_notes(method_key, total_kg, depth_cm)
         
         return RepairRecommendation(
             method=method_en,
-            method_id=method_id,
             material_name=material['name'],
             material_kg=round(total_kg, 2),
             material_cost_idr=round(material_cost),
@@ -254,14 +255,14 @@ if __name__ == "__main__":
     
     for tc in test_cases:
         rec = advisor.recommend(**tc)
-        print(f"\n  Severity:  {tc['severity_level']}")
-        print(f"  Method:    {rec.method} ({rec.method_id})")
-        print(f"  Material:  {rec.material_name}")
-        print(f"  Quantity:  {rec.material_kg} kg")
-        print(f"  Cost:      {advisor.format_cost_idr(rec.total_cost_idr)}")
-        print(f"  Time:      {rec.estimated_time_hours} hours")
-        print(f"  Durability: {rec.durability_months} months")
+        logger.info(f"Severity: {tc['severity_level']}")
+        logger.info(f"Method: {rec.method}")
+        logger.info(f"Material: {rec.material_name}")
+        logger.info(f"Quantity: {rec.material_kg} kg")
+        logger.info(f"Cost: {advisor.format_cost_idr(rec.total_cost_idr)}")
+        logger.info(f"Time: {rec.estimated_time_hours} hours")
+        logger.info(f"Durability: {rec.durability_months} months")
         if rec.notes:
-            print(f"  Notes:     {rec.notes}")
+            logger.info(f"Notes: {rec.notes}")
     
     print(f"\n{'='*70}")

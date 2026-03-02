@@ -149,7 +149,7 @@ names: ['pothole']
 
 if __name__ == "__main__":
     # API key (working key from user)
-    API_KEY = "gYoNG4iczFaZ6gEeyV6S"
+    API_KEY = "REDACTED_API_KEY"
     
     # Download dataset
     dataset = download_roboflow_dataset(API_KEY)

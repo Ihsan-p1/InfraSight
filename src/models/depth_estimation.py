@@ -6,6 +6,9 @@ import numpy as np
 import torch
 from typing import Optional
 from pathlib import Path
+from src.utils.logger import setup_logger
+
+logger = setup_logger("DepthEstimation")
 
 
 class DepthEstimator:
@@ -31,7 +34,7 @@ class DepthEstimator:
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         
-        print(f"Loading Depth Anything V2 on {device}...")
+        logger.info(f"Loading Depth Anything V2 on {device}...")
         
         self.device = device
         self.pipe = pipeline(
@@ -40,25 +43,19 @@ class DepthEstimator:
             device=0 if device == "cuda" else -1
         )
         
-        print("✓ Depth Anything V2 loaded successfully")
-    
+        logger.info("Depth Anything V2 loaded successfully")
+
     def predict(self, image: np.ndarray) -> np.ndarray:
         """
-        Generate depth map from RGB image
-        
-        CRITICAL NOTE: Output is RELATIVE DEPTH, not absolute metric depth!
-        - Values are disparity or normalized 0-1 (non-linear)
-        - Requires calibration with reference object for metric conversion
+        Generate depth map from RGB image.
         
         Args:
             image: RGB image (H, W, 3)
             
         Returns:
             depth_map: Relative depth map (H, W) - normalized [0, 1]
-                      Lower values = closer to camera (near)
-                      Higher values = farther from camera (far)
-                      OR inverted depending on model config - CHECK OUTPUT!
         """
+        import torch
         from PIL import Image
         
         # Convert numpy to PIL
@@ -67,8 +64,9 @@ class DepthEstimator:
         else:
             pil_image = Image.fromarray((image * 255).astype(np.uint8))
         
-        # Get depth prediction
-        result = self.pipe(pil_image)
+        # Get depth prediction with optimization
+        with torch.inference_mode():
+            result = self.pipe(pil_image)
         
         # Extract depth map
         depth_pil = result["depth"]

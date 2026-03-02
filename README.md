@@ -31,37 +31,32 @@ Build a comprehensive Computer Vision system capable of:
 ## Features
 
 ### Core Features
-- Instance segmentation of potholes and reference objects
-- Monocular depth map generation using Depth Anything V2
-- Volumetric calculation (area, depth, volume in cm³)
-- Surface vs Bottom heuristic for accurate depth estimation
-- Interactive 3D visualization using Plotly
-- Web-based interface built with Streamlit
+- **Instance Segmentation**: High-precision pothole and reference object detection using YOLOv8-Seg.
+- **Monocular Depth Tomography**: Depth map generation with Depth Anything V2.
+- **Premium 3D Visualization**: Downward-projection 3D mesh rendering with Plotly.
+- **Volumetric Analysis**: Accurate area (cm²), average depth (cm), and volume (cm³) estimation.
+- **Web Interface**: Professional dashboard in Streamlit (Full English).
 
 ### Advanced Features
-- **Material Classification**: Automated road surface type detection (asphalt/concrete/paving)
-- **Repair Recommendation**: Calculation of required materials (kg) and cost estimation (IDR)
-- **GPS Geolocation**: Location extraction from photo EXIF metadata with reverse geocoding
-- **Interactive Mapping**: Leaflet.js integration for infrastructure planning and logistics
+- **Surface Material Detection**: Automated classification (Asphalt, Concrete, Paving).
+- **Maintenance Recommendations**: Material quantity (kg) and cost estimation (IDR).
+- **Damage Map & GPS**: Extraction from EXIF metadata with interactive Folium maps.
+- **Automated Reporting**: Instant PDF maintenance report generation.
 
 ## Project Structure
 
 ```
 InfraSight/
 ├── config/              # Configuration files (config.yaml)
-├── data/                # Dataset storage (raw, processed, annotations)
-├── models/
-│   ├── weights/         # Model checkpoints
-│   └── training/        # Training scripts (train_yolo.py)
+├── data/                # Database and processed images
+├── scripts/             # Core utilities and archived dev scripts
 ├── src/
-│   ├── dataset/         # Dataset utilities (downloader, preprocessor)
-│   ├── models/          # Model inference (YOLO, Depth Anything V2)
-│   ├── core/            # Volumetric calculation logic (calibration, volumetric)
-│   ├── visualization/   # 3D visualization (Plotly)
-│   └── utils/           # Utility functions (logger, geolocation)
-├── webapp/              # Streamlit web application
-├── tests/               # Unit tests
-└── notebooks/           # Jupyter notebooks for exploration
+│   ├── core/            # Volumetric logic, severity, repair advisor
+│   ├── models/          # Model inference (YOLO, Depth Anything, Material)
+│   ├── utils/           # Shared utilities (logger, GPS, analysis)
+│   └── visualization/   # 3D Mesh Engine (Plotly)
+├── webapp/              # Streamlit dashboard
+└── README.md            # Documentation
 ```
 
 ## Technology Stack

@@ -1,10 +1,11 @@
-# Python
+# Python libraries and cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 venv/
+.venv/
 env/
 ENV/
 *.egg-info/
@@ -15,52 +16,47 @@ build/
 .ipynb_checkpoints
 *.ipynb_checkpoints
 
-# Data
-data/raw/*
-data/processed/*
+# Data & Datasets (MUST IGNORE)
+data/raw/
+data/processed/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
-# Models
+# Models & Weights (MUST IGNORE)
 models/weights/*
 !models/weights/.gitkeep
 *.pt
 *.pth
 *.onnx
 
-# Logs
+# Application Outputs & Logs
 *.log
 logs/
 runs/
 tensorboard/
+reports/*.pdf
+data/infrasight.db
 
-# IDE
+# Temporary/Cache Files
+tmp_*
+.streamlit/*.toml
+!.streamlit/config.toml
+
+# IDE & OS
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
 .DS_Store
 Thumbs.db
 
-# Streamlit
-.streamlit/secrets.toml
-
-# Environment
+# Environment & Secrets
 .env
 .env.local
+.streamlit/secrets.toml
 
-# Project notes
-PROJECT_SETUP_SUMMARY.md
-
-# InfraSight Specific
-reports/report_*.pdf
-reports/*.pdf
-data/infrasight.db
+# InfraSight Specific Test Outputs
 test_3d_outputs/
 test_*.html
 test_*.py
-*.pt
-*.pth
-*.onnx
+PROJECT_SETUP_SUMMARY.md

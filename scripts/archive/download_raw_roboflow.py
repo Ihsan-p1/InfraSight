@@ -37,7 +37,7 @@ def download_roboflow_raw(api_key, output_dir="data/raw/roboflow_raw"):
 
 
 if __name__ == "__main__":
-    API_KEY = "gYoNG4iczFaZ6gEeyV6S"
+    API_KEY = "REDACTED_API_KEY"
     
     # Download without filtering
     dataset = download_roboflow_raw(API_KEY)
