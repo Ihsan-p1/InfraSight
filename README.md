@@ -143,16 +143,6 @@ streamlit run app.py
 - **Material Classification**: > 95% accuracy (3 classes with distinctive textures)
 - **Confidence Level**: High with card reference, Low with coin reference
 
-## Development Status
-
-- [x] Phase 1: Project Setup + GPU Configuration
-- [x] Phase 7: Advanced Features Documentation
-- [ ] Phase 2: Dataset Preparation (In Progress)
-- [ ] Phase 3: YOLOv8-Seg Training
-- [ ] Phase 4: Depth Estimation Integration
-- [ ] Phase 5: Volumetric Calculation Implementation
-- [ ] Phase 6: Streamlit MVP Deployment
-- [ ] Phase 7: Material Classifier + GPS Integration
 
 ## Technical Algorithms
 
@@ -175,9 +165,6 @@ streamlit run app.py
 - **Depth Anything V2**: [HuggingFace](https://huggingface.co/depth-anything/Depth-Anything-V2-Small)
 - **RDD2022 Dataset**: [Road Damage Detection](https://github.com/sekilab/RoadDamageDetector)
 
-## License
-
-Academic project for educational purposes.
 
 
 
