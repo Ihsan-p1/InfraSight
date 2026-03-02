@@ -26,6 +26,7 @@ from src.core.volumetric import VolumetricCalculator
 from src.core.severity import SeverityClassifier
 from src.core.repair_advisor import RepairAdvisor
 from src.visualization.mesh_3d import Mesh3DVisualizer
+from src.models.material_classifier import MaterialClassifier
 from src.core.history_manager import HistoryManager
 from src.core.report_generator import ReportGenerator
 from src.utils.gps_utils import extract_gps
@@ -164,14 +165,17 @@ def get_models(conf_threshold=0.25, iou_threshold=0.45):
         st.info("Loading Depth Anything V2 (this may take 30s for the first run)...")
         depth_estimator = DepthEstimator(config['models']['depth']['model_name'])
         
+        st.info("Loading Material Classifier...")
+        material_classifier = MaterialClassifier(config_path=str(CONFIG_PATH))
+        
         st.success("Models loaded successfully.")
-        return segmenter, depth_estimator, config
+        return segmenter, depth_estimator, material_classifier, config
 
 history_mgr = HistoryManager()
 report_gen = ReportGenerator()
 
 # --- Helper Functions ---
-def run_analysis(image_np, segmenter, depth_estimator, config):
+def run_analysis(image_np, segmenter, depth_estimator, material_classifier, config):
     """Run full pipeline on single image"""
     # Detection
     seg_results = segmenter.detect(image_np, visualize=True)
@@ -203,9 +207,25 @@ def run_analysis(image_np, segmenter, depth_estimator, config):
         ref_area, ref_type
     )
     
+    # Material Classification (Crop pothole from raw image)
+    x1, y1, x2, y2 = pothole_det.bbox
+    x1, y1, x2, y2 = max(0, int(x1)), max(0, int(y1)), min(image_np.shape[1], int(x2)), min(image_np.shape[0], int(y2))
+    pothole_crop = image_np[y1:y2, x1:x2]
+    
+    mat_res = None
+    surface_type = "asphalt" # default
+    if pothole_crop.size > 0:
+        mat_res = material_classifier.predict(pothole_crop)
+        # Use detected material if confidence is high enough
+        if mat_res['confidence'] >= config.get('models', {}).get('material', {}).get('confidence_threshold', 0.6):
+            surface_type = mat_res['class']
+            
     # Severity & Repair
     sev_res = SeverityClassifier().classify(vol_res.avg_depth_cm, vol_res.area_cm2, vol_res.volume_cm3)
-    rep_res = RepairAdvisor().recommend(vol_res.volume_cm3, vol_res.avg_depth_cm, vol_res.area_cm2, sev_res.level)
+    rep_res = RepairAdvisor().recommend(
+        vol_res.volume_cm3, vol_res.avg_depth_cm, vol_res.area_cm2, 
+        severity_level=sev_res.level, surface_type=surface_type
+    )
     
     return {
         'annotated': seg_results['annotated_image'],
@@ -213,6 +233,8 @@ def run_analysis(image_np, segmenter, depth_estimator, config):
         'volumetric': vol_res,
         'severity': sev_res,
         'repair': rep_res,
+        'surface_type': surface_type,
+        'surface_conf': mat_res['confidence'] if mat_res else 0.0,
         'depth_raw': depth_map,
         'pothole_mask': pothole_det.mask
     }
@@ -229,7 +251,7 @@ def page_analyze():
     with col_t2:
         iou_t = st.slider("IoU Threshold", 0.1, 1.0, 0.45, 0.05, help="Intersection Over Union for overlapping boxes")
 
-    segmenter, depth_estimator, config = get_models(conf_threshold=conf_t, iou_threshold=iou_t)
+    segmenter, depth_estimator, material_classifier, config = get_models(conf_threshold=conf_t, iou_threshold=iou_t)
     
     files = st.file_uploader("Upload Images", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
     
@@ -250,7 +272,7 @@ def page_analyze():
                 
                 # Analyze
                 try:
-                    res = run_analysis(img_np, segmenter, depth_estimator, config)
+                    res = run_analysis(img_np, segmenter, depth_estimator, material_classifier, config)
                     
                     if res:
                         # Save results
@@ -323,6 +345,7 @@ def page_analyze():
                     st.markdown("---")
                     st.write("### Perbaikan")
                     st.write(f"**Metode:** {rep.method_id}")
+                    st.write(f"**Material Jalan:** {res['surface_type'].capitalize()} ({res['surface_conf']:.2f})")
                     st.metric("Estimasi Biaya", f"Rp {rep.total_cost_idr:,.0f}")
                     
                     # Material Breakdown

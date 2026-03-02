@@ -4,9 +4,9 @@
 models:
   yolo:
     architecture: "yolov8m-seg"  # Segmentation model (pretrained + fine-tuned)
-    # Priority: indonesian_finetuned > rdd_finetuned > pretrained
-    weights_path: "runs/detect/models/weights/pothole_seg/indonesian_finetune/weights/best.pt"
-    weights_fallback: "runs/detect/models/weights/pothole_seg/finetuned_v1/weights/best.pt"
+    # Priority: fine-tuned > pretrained > old detection model
+    weights_path: "runs/detect/models/weights/pothole_seg/finetuned_v1/weights/best.pt"
+    weights_fallback: "models/weights/pretrained/yolov8m-pothole-seg.pt"
     weights_legacy: "models/weights/pothole_det/best.pt"
     conf_threshold: 0.25  # Restored — finetuned model has high confidence
     iou_threshold: 0.45
@@ -17,6 +17,11 @@ models:
   depth:
     model_name: "depth-anything/Depth-Anything-V2-Small-hf"  # -hf variant for transformers
     device: "cuda"  # or "cpu"
+
+  material:
+    weights_path: "models/weights/road_material/material_classifier_v1.pt"
+    classes: ["asphalt", "concrete", "paving"]
+    confidence_threshold: 0.6
 
 # Reference Object Specifications (in cm) - CARD PRIORITIZED
 reference_objects:
