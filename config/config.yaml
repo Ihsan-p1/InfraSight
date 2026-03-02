@@ -4,9 +4,9 @@
 models:
   yolo:
     architecture: "yolov8m-seg"  # Segmentation model (pretrained + fine-tuned)
-    # Priority: indonesian_finetuned > rdd_finetuned > pretrained
-    weights_path: "runs/detect/models/weights/pothole_seg/indonesian_finetune/weights/best.pt"
-    weights_fallback: "runs/detect/models/weights/pothole_seg/finetuned_v1/weights/best.pt"
+    # Priority: multiple_pothole > indonesian_finetuned > rdd_finetuned
+    weights_path: "runs/detect/models/weights/multiple_pothole/multi_v1/weights/best.pt"
+    weights_fallback: "runs/detect/models/weights/pothole_seg/indonesian_finetune/weights/best.pt"
     weights_legacy: "models/weights/pothole_det/best.pt"
     conf_threshold: 0.25  # Restored — finetuned model has high confidence
     iou_threshold: 0.45
